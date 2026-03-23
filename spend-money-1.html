@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gaste o Dinheiro</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --green: #00e676; --red: #ff1744; --gold: #ffd600;
+    --bg: #0a0a0f; --card: #13131a; --border: #1e1e2e;
+    --text: #f0f0ff; --sub: #888aaa;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; min-height:100vh; overflow-x:hidden; }
+
+  /* SELECTOR */
+  #screen-selector {
+    position:fixed; inset:0; z-index:999; background:#0a0a0f;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; padding:20px;
+  }
+  #screen-selector.hidden { display:none !important; }
+  .sel-title { font-family:'Bebas Neue',sans-serif; font-size:42px; color:var(--gold); text-align:center; }
+  .sel-sub { color:var(--sub); font-size:14px; }
+  .bil-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:100%; max-width:360px; }
+  .bil-card {
+    background:var(--card); border:2px solid var(--border); border-radius:16px; padding:16px;
+    display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; transition:all 0.2s;
+  }
+  .bil-card:hover { border-color:var(--gold); transform:scale(1.03); }
+  .bil-emoji { font-size:32px; }
+  .bil-nm { font-weight:700; font-size:13px; text-align:center; }
+  .bil-money { font-family:'Bebas Neue',sans-serif; color:var(--green); font-size:14px; }
+
+  /* GAME */
+  #screen-game { display:none; }
+  #screen-game.active { display:block; }
+
+  header {
+    position:sticky; top:0; z-index:50;
+    background:rgba(10,10,15,0.95); backdrop-filter:blur(16px);
+    border-bottom:1px solid var(--border); padding:14px 20px;
+  }
+  .hdr-row { display:flex; align-items:center; gap:14px; }
+  .avatar { width:50px; height:50px; border-radius:50%; border:2px solid var(--gold); display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+  .bil-name-hdr { font-family:'Bebas Neue',sans-serif; font-size:18px; color:var(--gold); line-height:1; }
+  .balance { font-family:'Bebas Neue',sans-serif; font-size:26px; color:var(--green); letter-spacing:1px; }
+  .prog-row { display:flex; align-items:center; gap:10px; margin-top:8px; }
+  .bar-bg { flex:1; height:7px; background:var(--border); border-radius:99px; overflow:hidden; }
+  .bar-fill { height:100%; background:linear-gradient(90deg,var(--green),var(--gold)); border-radius:99px; transition:width 0.3s; width:0%; }
+  .pct { font-size:12px; color:var(--sub); white-space:nowrap; }
+  .tmr { font-size:11px; color:var(--sub); margin-top:4px; }
+
+  .tabs { display:flex; gap:8px; padding:12px 16px 0; overflow-x:auto; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab { padding:7px 16px; border-radius:20px; border:1px solid var(--border); background:transparent; color:var(--sub); font-size:13px; font-family:'Inter',sans-serif; cursor:pointer; white-space:nowrap; transition:all 0.2s; }
+  .tab.active { background:var(--gold); color:#000; border-color:var(--gold); font-weight:700; }
+
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:12px; padding:14px 14px 80px; }
+  .item-card { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:14px 12px; display:flex; flex-direction:column; align-items:center; gap:8px; transition:transform 0.2s,border-color 0.2s; }
+  .item-card:hover { transform:translateY(-2px); border-color:#333355; }
+  .item-card.bought { border-color:rgba(0,230,118,0.35); }
+  .item-emoji { font-size:36px; line-height:1; }
+  .item-name { font-size:13px; font-weight:600; text-align:center; line-height:1.3; }
+  .item-price { font-family:'Bebas Neue',sans-serif; font-size:15px; color:var(--gold); }
+  .item-count { font-size:11px; color:var(--sub); min-height:14px; }
+  .item-ctrls { display:flex; align-items:center; gap:6px; width:100%; }
+  .btn-sell {
+    width:32px; height:32px; flex-shrink:0; border:1px solid var(--border);
+    background:#1a1a2a; color:var(--sub); border-radius:8px; font-size:18px;
+    cursor:pointer; transition:all 0.15s; font-family:'Inter',sans-serif; line-height:1;
+  }
+  .btn-sell:hover:not([disabled]) { background:#ff174422; color:var(--red); border-color:var(--red); }
+  .btn-sell[disabled] { opacity:0.25; cursor:not-allowed; }
+  .btn-buy {
+    flex:1; height:32px; background:var(--green); color:#000; border:none; border-radius:8px;
+    font-size:13px; font-weight:700; cursor:pointer; font-family:'Inter',sans-serif; transition:all 0.15s;
+  }
+  .btn-buy:hover:not([disabled]) { background:#00ff85; }
+  .btn-buy[disabled] { background:#1a3d2b; color:#2a5a3a; cursor:not-allowed; }
+  .btn-buy:active, .btn-sell:active { transform:scale(0.94); }
+
+  /* TOAST */
+  .toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--green); color:#000; padding:10px 20px; border-radius:99px; font-weight:700; font-size:13px; opacity:0; transition:all 0.25s; pointer-events:none; z-index:200; white-space:nowrap; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+  .toast.err { background:var(--red); color:#fff; }
+
+  /* WIN */
+  #screen-win { position:fixed; inset:0; z-index:998; background:rgba(0,0,0,0.93); display:none; flex-direction:column; align-items:center; justify-content:center; gap:16px; text-align:center; padding:20px; }
+  #screen-win.active { display:flex; }
+  .win-emoji { font-size:80px; }
+  .win-title { font-family:'Bebas Neue',sans-serif; font-size:64px; color:var(--gold); text-shadow:0 0 40px rgba(255,214,0,0.4); animation:pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+  .win-sub { color:var(--sub); font-size:15px; line-height:1.8; }
+  .btn-restart { margin-top:10px; padding:14px 40px; background:var(--gold); color:#000; border:none; border-radius:12px; font-size:20px; font-weight:700; cursor:pointer; font-family:'Bebas Neue',sans-serif; letter-spacing:1px; transition:transform 0.15s; }
+  .btn-restart:hover { transform:scale(1.05); }
+
+  .confetti-piece { position:fixed; width:8px; height:8px; border-radius:2px; animation:cffall 3s ease-in forwards; z-index:999; pointer-events:none; }
+  @keyframes cffall { 0%{transform:translateY(-10px) rotate(0deg);opacity:1} 100%{transform:translateY(110vh) rotate(720deg);opacity:0} }
+</style>
+</head>
+<body>
+
+<div id="screen-selector">
+  <div class="sel-title">💸 GASTE O DINHEIRO</div>
+  <div class="sel-sub">Escolha seu bilionário</div>
+  <div class="bil-grid" id="bilGrid"></div>
+</div>
+
+<div id="screen-game">
+  <header>
+    <div class="hdr-row">
+      <div class="avatar"><span id="avatarEmoji">🤵</span></div>
+      <div>
+        <div class="bil-name-hdr" id="bilNameHdr">—</div>
+        <div class="balance" id="balanceEl">$ 0</div>
+      </div>
+    </div>
+    <div class="prog-row">
+      <div class="bar-bg"><div class="bar-fill" id="barFill"></div></div>
+      <div class="pct" id="pctEl">0%</div>
+    </div>
+    <div class="tmr" id="tmrEl">⏱ 0 seg.</div>
+  </header>
+  <div class="tabs" id="tabsEl"></div>
+  <div class="grid" id="gridEl"></div>
+</div>
+
+<div id="screen-win">
+  <div class="win-emoji">🎉</div>
+  <div class="win-title">FALIDO!</div>
+  <div class="win-sub" id="winSubEl"></div>
+  <button class="btn-restart" id="btnRestart">JOGAR NOVAMENTE</button>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+const BILLIONAIRES = [
+  { name:"Elon Musk",       emoji:"🚀", money:219000000000 },
+  { name:"Jeff Bezos",      emoji:"📦", money:180000000000 },
+  { name:"Bill Gates",      emoji:"💻", money:130000000000 },
+  { name:"Bernard Arnault", emoji:"👜", money:160000000000 },
+];
+const CATS = [
+  { id:"tech",       label:"📱 Tech" },
+  { id:"cars",       label:"🚗 Carros" },
+  { id:"realestate", label:"🏠 Imóveis" },
+  { id:"luxury",     label:"💎 Luxo" },
+  { id:"space",      label:"🚀 Espaço" },
+  { id:"fun",        label:"🎮 Diversão" },
+];
+const ITEMS = [
+  { id:1,  cat:"tech",       name:"iPhone 15 Pro",        emoji:"📱", price:1199 },
+  { id:2,  cat:"tech",       name:"MacBook Pro",           emoji:"💻", price:2499 },
+  { id:3,  cat:"tech",       name:"PS5",                   emoji:"🎮", price:499 },
+  { id:4,  cat:"tech",       name:"Tesla Model S",         emoji:"⚡", price:89990 },
+  { id:5,  cat:"tech",       name:"Servidor NASA",         emoji:"🖥️", price:5000000 },
+  { id:6,  cat:"tech",       name:"Satélite Starlink",     emoji:"🛰️", price:250000000 },
+  { id:7,  cat:"cars",       name:"Ferrari 488",           emoji:"🏎️", price:280000 },
+  { id:8,  cat:"cars",       name:"Lamborghini Urus",      emoji:"🚙", price:230000 },
+  { id:9,  cat:"cars",       name:"Bugatti Chiron",        emoji:"💨", price:3000000 },
+  { id:10, cat:"cars",       name:"Rolls Royce",           emoji:"👑", price:450000 },
+  { id:11, cat:"cars",       name:"Frota de F1",           emoji:"🏁", price:50000000 },
+  { id:12, cat:"cars",       name:"Submarino Privado",     emoji:"🤿", price:80000000 },
+  { id:13, cat:"realestate", name:"Apartamento SP",        emoji:"🏢", price:500000 },
+  { id:14, cat:"realestate", name:"Casa em Miami",         emoji:"🏖️", price:2000000 },
+  { id:15, cat:"realestate", name:"Mansão Beverly Hills",  emoji:"🏰", price:20000000 },
+  { id:16, cat:"realestate", name:"Ilha Privada",          emoji:"🏝️", price:100000000 },
+  { id:17, cat:"realestate", name:"Arranha-céu NYC",       emoji:"🗽", price:500000000 },
+  { id:18, cat:"realestate", name:"Palácio de Versailles", emoji:"🏯", price:2000000000 },
+  { id:19, cat:"luxury",     name:"Relógio Patek",         emoji:"⌚", price:500000 },
+  { id:20, cat:"luxury",     name:"Diamante 50ct",         emoji:"💎", price:5000000 },
+  { id:21, cat:"luxury",     name:"Jato Privado G700",     emoji:"✈️", price:75000000 },
+  { id:22, cat:"luxury",     name:"Iate 90m",              emoji:"⛵", price:150000000 },
+  { id:23, cat:"luxury",     name:"Obra de Arte Picasso",  emoji:"🎨", price:100000000 },
+  { id:24, cat:"space",      name:"Viagem ao Espaço",      emoji:"👨‍🚀",price:450000 },
+  { id:25, cat:"space",      name:"Foguete SpaceX",        emoji:"🚀", price:60000000 },
+  { id:26, cat:"space",      name:"Estação Espacial",      emoji:"🛸", price:150000000000 },
+  { id:27, cat:"fun",        name:"Nintendo Switch",       emoji:"🕹️", price:299 },
+  { id:28, cat:"fun",        name:"Parque de Diversões",   emoji:"🎡", price:50000000 },
+  { id:29, cat:"fun",        name:"Time de Futebol",       emoji:"⚽", price:1000000000 },
+  { id:30, cat:"fun",        name:"Casino em Vegas",       emoji:"🎰", price:5000000000 },
+  { id:31, cat:"fun",        name:"Zoológico Privado",     emoji:"🦁", price:8000000 },
+  { id:32, cat:"fun",        name:"Circo Pessoal",         emoji:"🎪", price:2000000 },
+];
+
+let money=0, initialMoney=0, spent=0, elapsed=0, counts={}, activeCat='tech', tmrInt=null;
+
+function fmt(n) {
+  if(n>=1e12) return '$ '+(n/1e12).toFixed(2)+'T';
+  if(n>=1e9)  return '$ '+(n/1e9).toFixed(2)+'B';
+  if(n>=1e6)  return '$ '+(n/1e6).toFixed(2)+'M';
+  if(n>=1e3)  return '$ '+(n/1e3).toFixed(1)+'K';
+  return '$ '+Math.floor(n).toLocaleString('pt-BR');
+}
+
+let ttimer;
+function toast(msg, err) {
+  const el=document.getElementById('toastEl');
+  el.textContent=msg;
+  el.className='toast show'+(err?' err':'');
+  clearTimeout(ttimer);
+  ttimer=setTimeout(()=>el.className='toast',2000);
+}
+
+function showScreen(s) {
+  const sel=document.getElementById('screen-selector');
+  const game=document.getElementById('screen-game');
+  const win=document.getElementById('screen-win');
+  sel.className = s==='selector' ? '' : 'hidden';
+  game.className = s==='game' ? 'active' : '';
+  win.className  = s==='win'  ? 'active' : '';
+}
+
+function initSelector() {
+  const g=document.getElementById('bilGrid');
+  g.innerHTML='';
+  BILLIONAIRES.forEach(b=>{
+    const c=document.createElement('div');
+    c.className='bil-card';
+    c.innerHTML=`<div class="bil-emoji">${b.emoji}</div><div class="bil-nm">${b.name}</div><div class="bil-money">${fmt(b.money)}</div>`;
+    c.addEventListener('click', ()=>startGame(b));
+    g.appendChild(c);
+  });
+}
+
+function startGame(b) {
+  money=b.money; initialMoney=b.money; spent=0; elapsed=0; counts={}; activeCat='tech';
+  document.getElementById('avatarEmoji').textContent=b.emoji;
+  document.getElementById('bilNameHdr').textContent=b.name;
+  showScreen('game');
+  updateHeader(); renderTabs(); renderGrid();
+  clearInterval(tmrInt);
+  tmrInt=setInterval(()=>{
+    elapsed++;
+    document.getElementById('tmrEl').textContent='⏱ '+elapsed+' seg.';
+  },1000);
+}
+
+function updateHeader() {
+  document.getElementById('balanceEl').textContent=fmt(money);
+  const pct=initialMoney>0?(spent/initialMoney)*100:0;
+  document.getElementById('barFill').style.width=Math.min(pct,100)+'%';
+  document.getElementById('pctEl').textContent=pct.toFixed(1)+'%';
+}
+
+function renderTabs() {
+  const el=document.getElementById('tabsEl');
+  el.innerHTML='';
+  CATS.forEach(c=>{
+    const btn=document.createElement('button');
+    btn.className='tab'+(c.id===activeCat?' active':'');
+    btn.textContent=c.label;
+    btn.addEventListener('click',()=>{ activeCat=c.id; renderTabs(); renderGrid(); });
+    el.appendChild(btn);
+  });
+}
+
+function updateAllBuyBtns() {
+  ITEMS.forEach(i=>{
+    const btn=document.getElementById('buy-'+i.id);
+    if(btn) btn.disabled = money < i.price;
+  });
+}
+
+function renderGrid() {
+  const el=document.getElementById('gridEl');
+  el.innerHTML='';
+  ITEMS.filter(i=>i.cat===activeCat).forEach(item=>{
+    const count=counts[item.id]||0;
+
+    const card=document.createElement('div');
+    card.className='item-card'+(count>0?' bought':'');
+    card.id='card-'+item.id;
+
+    const emojiEl=document.createElement('div'); emojiEl.className='item-emoji'; emojiEl.textContent=item.emoji;
+    const nameEl=document.createElement('div');  nameEl.className='item-name';  nameEl.textContent=item.name;
+    const priceEl=document.createElement('div'); priceEl.className='item-price'; priceEl.textContent=fmt(item.price);
+    const countEl=document.createElement('div'); countEl.className='item-count'; countEl.id='count-'+item.id; countEl.textContent=count>0?'×'+count:'';
+
+    const sellBtn=document.createElement('button');
+    sellBtn.className='btn-sell';
+    sellBtn.id='sell-'+item.id;
+    sellBtn.textContent='−';
+    if(count===0) sellBtn.setAttribute('disabled','');
+    sellBtn.addEventListener('click', function(){ sell(item.id); });
+
+    const buyBtn=document.createElement('button');
+    buyBtn.className='btn-buy';
+    buyBtn.id='buy-'+item.id;
+    buyBtn.textContent='Comprar';
+    if(money<item.price) buyBtn.setAttribute('disabled','');
+    buyBtn.addEventListener('click', function(){ buy(item.id); });
+
+    const ctrls=document.createElement('div'); ctrls.className='item-ctrls';
+    ctrls.appendChild(sellBtn); ctrls.appendChild(buyBtn);
+
+    card.appendChild(emojiEl); card.appendChild(nameEl); card.appendChild(priceEl);
+    card.appendChild(countEl); card.appendChild(ctrls);
+    el.appendChild(card);
+  });
+}
+
+function buy(id) {
+  const item=ITEMS.find(i=>i.id===id);
+  if(!item){ return; }
+  if(money<item.price){ toast('Dinheiro insuficiente!',true); return; }
+
+  money-=item.price;
+  spent+=item.price;
+  counts[id]=(counts[id]||0)+1;
+
+  const countEl=document.getElementById('count-'+id);
+  const cardEl=document.getElementById('card-'+id);
+  const sellEl=document.getElementById('sell-'+id);
+  const buyEl=document.getElementById('buy-'+id);
+
+  if(countEl) countEl.textContent='×'+counts[id];
+  if(cardEl)  cardEl.classList.add('bought');
+  if(sellEl)  sellEl.removeAttribute('disabled');
+  if(buyEl)   { if(money<item.price) buyEl.setAttribute('disabled',''); else buyEl.removeAttribute('disabled'); }
+
+  updateAllBuyBtns();
+  updateHeader();
+  toast(item.emoji+' Comprado!');
+
+  if(money<=0) setTimeout(showWin,500);
+}
+
+function sell(id) {
+  const item=ITEMS.find(i=>i.id===id);
+  if(!item||!counts[id]) return;
+
+  money+=item.price;
+  spent-=item.price;
+  counts[id]--;
+
+  const countEl=document.getElementById('count-'+id);
+  const cardEl=document.getElementById('card-'+id);
+  const sellEl=document.getElementById('sell-'+id);
+  const buyEl=document.getElementById('buy-'+id);
+
+  if(countEl) countEl.textContent=counts[id]>0?'×'+counts[id]:'';
+  if(cardEl&&!counts[id]) cardEl.classList.remove('bought');
+  if(sellEl)  { if(!counts[id]) sellEl.setAttribute('disabled',''); else sellEl.removeAttribute('disabled'); }
+  if(buyEl)   buyEl.removeAttribute('disabled');
+
+  updateAllBuyBtns();
+  updateHeader();
+  toast('Vendido por '+fmt(item.price));
+}
+
+function showWin() {
+  clearInterval(tmrInt);
+  const pct=((spent/initialMoney)*100).toFixed(1);
+  document.getElementById('winSubEl').innerHTML='Você gastou <b>'+pct+'%</b> da fortuna<br>em <b>'+elapsed+'</b> segundos!<br><br>Total: '+fmt(spent);
+  showScreen('win');
+  spawnConfetti();
+}
+
+function spawnConfetti() {
+  const colors=['#ffd600','#00e676','#ff1744','#2979ff','#aa00ff','#ff6d00'];
+  for(let i=0;i<70;i++){
+    setTimeout(()=>{
+      const c=document.createElement('div');
+      c.className='confetti-piece';
+      c.style.cssText='left:'+Math.random()*100+'vw;top:-10px;background:'+colors[Math.floor(Math.random()*colors.length)]+';animation-duration:'+(2+Math.random()*2)+'s;';
+      document.body.appendChild(c);
+      setTimeout(()=>c.remove(),4000);
+    },i*25);
+  }
+}
+
+document.getElementById('btnRestart').addEventListener('click',()=>{
+  clearInterval(tmrInt);
+  showScreen('selector');
+  initSelector();
+});
+
+initSelector();
+showScreen('selector');
+</script>
+</body>
+</html>
